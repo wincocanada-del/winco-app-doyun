@@ -1,0 +1,126 @@
+:root {
+  --winco-bg: #f4f6f8;
+  --winco-panel: #ffffff;
+  --winco-border: #d8dee8;
+  --winco-ink: #111827;
+  --winco-muted: #64748b;
+  --winco-accent: #0f172a;
+  --winco-radius: 12px;
+}
+
+body {
+  background: var(--winco-bg);
+  color: var(--winco-ink);
+}
+
+.winco-app {
+  background:
+    linear-gradient(180deg, #f8fafc 0, var(--winco-bg) 240px),
+    var(--winco-bg);
+}
+
+.winco-splash {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+}
+
+.winco-main {
+  max-width: 1180px;
+}
+
+.winco-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin: -0.75rem -0.75rem 1rem;
+  padding: 0.75rem;
+  background: rgba(248, 250, 252, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(216, 222, 232, 0.8);
+}
+
+.winco-brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: #111827;
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.winco-tab-button {
+  min-height: 34px;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--winco-border);
+  background: #fff;
+  color: #334155;
+  font-size: 0.875rem;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.winco-tab-button-active {
+  background: var(--winco-accent);
+  border-color: var(--winco-accent);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, .16);
+}
+
+.winco-app .rounded-2xl {
+  border-radius: var(--winco-radius);
+}
+
+.winco-app .border {
+  border-color: var(--winco-border);
+}
+
+.winco-app input,
+.winco-app select,
+.winco-app textarea {
+  border-color: var(--winco-border);
+  border-radius: 10px;
+  min-height: 40px;
+  background-color: #fff;
+}
+
+.winco-app input:focus,
+.winco-app select:focus,
+.winco-app textarea:focus {
+  outline: 2px solid rgba(15, 23, 42, .18);
+  outline-offset: 1px;
+  border-color: #94a3b8;
+}
+
+.winco-app table thead {
+  background: #f8fafc;
+}
+
+.winco-app table th {
+  color: #334155;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .winco-topbar {
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+  }
+
+  .winco-tab-button {
+    padding-left: 0.65rem;
+    padding-right: 0.65rem;
+    font-size: 0.8125rem;
+  }
+}
+
