@@ -909,6 +909,8 @@ const FABRIC_SEED = {
       codes:["TS 300 (Grey)","TS 600 (White)"] },
     { category:"Roller", name:"DN (Single)", price:13.5,
       codes:["DN 600 (White)"] },
+    { category:"Roller", name:"DN-D", price:12.5,
+      codes:["DN 600 (White)"] },
     { category:"Roller", name:"Sky", price:12.5,
       codes:["SKY 200 (Beige)","SKY 300 (Grey)"] },
     { category:"Roller", name:"Field", price:13.8,
@@ -975,6 +977,21 @@ function seedPriceByName() {
   return m;
 }
 
+function placeFamilyAfter(families, familyName, anchorName) {
+  const moving = (families||[]).find(f => f?.name === familyName);
+  if (!moving) return families || [];
+
+  const rest = (families||[]).filter(f => f?.name !== familyName);
+  const anchorIndex = rest.findIndex(f => f?.name === anchorName);
+  if (anchorIndex < 0) return [...rest, moving];
+
+  return [
+    ...rest.slice(0, anchorIndex + 1),
+    moving,
+    ...rest.slice(anchorIndex + 1),
+  ];
+}
+
 // 2) 런타임 카탈로그 패치 + price 보정
 function runFabricPatches(){
   const cur  = getLS(LS_FABRIC, FABRIC_SEED);
@@ -982,6 +999,7 @@ function runFabricPatches(){
   const seedPrice = seedPriceByName();
 
   const next = { ...cur, families: [] };
+  const existingNames = new Set();
 
   for (const fam of (cur.families||[])) {
     if (FABRIC_REMOVE_FAMILIES.has(fam.name)) continue;
@@ -997,7 +1015,16 @@ function runFabricPatches(){
     if (price == null || price === 0) price = seedP != null ? seedP : 0;
 
     next.families.push({ ...fam, price, codes });
+    existingNames.add(fam.name);
   }
+
+  for (const fam of (seed.families||[])) {
+    if (FABRIC_REMOVE_FAMILIES.has(fam.name)) continue;
+    if (existingNames.has(fam.name)) continue;
+    next.families.push(fam);
+  }
+
+  next.families = placeFamilyAfter(next.families, "DN-D", "DN (Single)");
 
   setLS(LS_FABRIC, next);
 }
@@ -1036,7 +1063,7 @@ const FAMILY_SHORT_MAP = new Map([
   ["7 Linear (Pucker 7)", "7LIN"], ["Zio (Basic)", "ZIO"],
   ["Aries (Polaris)", "ARI"],
   // Roller
-  ["TS (Tashkent Single)", "TS"], ["DN (Single)", "DN"],
+  ["TS (Tashkent Single)", "TS"], ["DN (Single)", "DN"], ["DN-D", "DN-D"],
   ["Sky", "SKY"], ["Field", "FLB"], ["TC", "TC"],
   ["Miami", "MIA"], ["JA (B/O)", "JA"], ["NF (B/O)", "NF"],
   ["ICE", "ICE"], ["Sunscreen 1%", "1SUN"], ["Sunscreen 3%", "3SUN"],
@@ -1089,8 +1116,11 @@ function formatColorLabel(raw) {
 
 // family 원문 이름 → 사내 약칭(PLU/OLE/1SUN...)
 function shortCodeForFamilyName(name){
-  const base = String(name||"").replace(/\s*\(B\/O\)\s*$/i,"").trim(); // "(B/O)" 제거
-  return (FAMILY_SHORT_MAP.get(base) || base.toUpperCase()).split(" ")[0];
+  const raw = String(name||"").trim();
+  const isBO = /\s*\(B\/O\)\s*$/i.test(raw);
+  const base = raw.replace(/\s*\(B\/O\)\s*$/i,"").trim();
+  const short = (FAMILY_SHORT_MAP.get(base) || base.toUpperCase()).split(" ")[0];
+  return isBO ? `${short} B/O` : short;
 }
 
 // color 문자열에서 컬러코드만 뽑기 (숫자 또는 DN특수코드)
@@ -5423,7 +5453,8 @@ const mainTable = `
   // ── 6) 다운로드
   const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
   const a = document.createElement("a");
-  const safeFile = `${sanitizeFileName(job?.name || "Export")}.xls`;
+  const customerName = (job?.header?.customer || "").trim();
+  const safeFile = `${sanitizeFileName(customerName || job?.name || "Export")}.xls`;
   a.href = URL.createObjectURL(blob);
   a.download = safeFile;   // ★ 슬래시 제거된 파일명 사용
   document.body.appendChild(a);
