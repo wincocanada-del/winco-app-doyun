@@ -1,52 +1,86 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 import ScrollNav from "./lib/ScrollNav";
-import { APP_VERSION, SHOW_SQFT_FOOTER, XLS_WITH_SQFT_SUM } from "./data/appConfig";
-import {
-  ACC_CAT_OPTS,
-  ACC_TYPE_OPTS,
-  ACCESSORY_CATALOG,
-  ACCESSORY_PRICE_MAP,
-  BOTTOM_TYPES,
-  COLOR_COMMON,
-  CONTROL_OPTS,
-  CONTROL_SUR,
-  HEADRAIL_OPTS,
-  HDR_TBL,
-  HW_COLOR_LABELS,
-  MOTOR_PRICE,
-  MOTORS,
-  MOUNT_OPTS,
-  REMOTE_DETAIL_OPTS,
-  SPACE_LABELS,
-  SPACE_OPTS,
-  SPRING_ASSIST_PRICE,
-} from "./data/options";
-import { ACCOUNT_PIN_MAP, ACCOUNTS, ROLE_LABELS } from "./data/accounts";
-import { LS_AUTH, LS_FABRIC, LS_JOBS, LS_MEASURE_AUTO, getLS, getSS, setLS, setSS } from "./lib/storage";
-import { SUPA_ON, supabase } from "./lib/supabaseClient";
-import { AppShell, SplashScreen, TabsFrame, TopNavButton } from "./components/layout/AppShell";
-import "./styles/winco-modern.css";
 
 /* ───────────────────────────── Supabase Client ───────────────────────────── */
+const SUPA_URL = import.meta.env.VITE_SUPABASE_URL || "";
+const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+const supabase = (SUPA_URL && SUPA_KEY) ? createClient(SUPA_URL, SUPA_KEY) : null;
+const SUPA_ON = !!supabase;
 
 /* App version */
+const APP_VERSION = "1.0.3"; // 패치내용 : sqft 최소 6, split L or R
 
 /* ---------------- Storage Keys (simple) ---------------- */
+const LS_AUTH         = "winco_auth";
+const LS_JOBS         = "winco_jobs";          // local drafts
+const LS_FABRIC       = "winco_fabric";
+const LS_MEASURE_AUTO = "winco_measure_auto";  // auto-preserve Measure tab
 
 /* ===================== NEW / UPDATED CONSTANTS (Headrail/Control/Duo) ===================== */
 // Headrail 옵션 (표기는 약어만)
+const HEADRAIL_OPTS = ["SL","OR","ZSL","ZST","3FA","4FA(Duo)","ZRO"];
 
 // Control 옵션 (라벨상 Control, 기능적으로 cordType 그대로 사용)
+const CONTROL_OPTS = ["CH","STR","WC","CLF","CLS","CLO", "Motor"];
 
 // Control 서브차지 ($)
+const CONTROL_SUR = { CLF:16, CLS:30, CLO:24, WC:25 };
 
 // Spring Assist ($)
+const SPRING_ASSIST_PRICE = 16;
 
 // ── Feature toggles (쉽게 on/off)
+const SHOW_SQFT_FOOTER = true;   // Review 표 아래 "Total Sqft" 한 줄 표시
+const XLS_WITH_SQFT_SUM = true;  // (Office 엑셀) Items 마지막에 Sqft 합계행 추가
 
 // Motor 라인업
+const MOTORS = [
+  { code:"AK25", label:"A-OK AM25D (ZIGBEE)", price:240 },
+  { code:"S28",  label:"Somfy Sonesse 28 WireFree RTS", price:560 },
+  { code:"S30",  label:"Somfy Sonesse 30 RTS",           price:790 },
+  { code:"S40",  label:"Somfy Sonesse 40 RTS",           price:920 },
+];
+const MOTOR_PRICE = Object.fromEntries(MOTORS.map(m=>[m.code, m.price]));
+
 // Headrail 폭별 서브차지 테이블 (3FA/4FA(ZSL/ZST 포함), in → $)
+const HDR_TBL = {
+  "3FA": {
+    tiers: [[30,48],[36,57],[42,66],[48,75],[54,84],[60,93],[66,102],[72,111],[78,120],[84,129],[90,138],[96,147],[102,156],[108,165]],
+    per6: 9
+  },
+  "4FA(Duo)": {
+    tiers: [[30,60],[36,71],[42,82],[48,93],[54,104],[60,115],[66,126],[72,137],[78,148],[84,159],[90,170],[96,181],[102,192],[108,203]],
+    per6: 11
+  },
+  "ZSL": {
+    tiers: [[30,55],[36,65],[42,75],[48,85],[54,95],[60,105],[66,115],[72,125],[78,135],[84,145],[90,155],[96,165],[102,175],[108,185]],
+    per6: 10
+  },
+  "ZST": {
+    tiers: [[30,75],[36,90],[42,105],[48,120],[54,135],[60,150],[66,165],[72,180],[78,195],[84,210],[90,225],[96,240],[102,255],[108,270]],
+    per6: 15
+  }
+};
+
+
 // ✅ 새 악세서리 카탈로그 (확장 가능)
+const ACCESSORY_CATALOG = [
+  { code: "CHARGER",     label: "Charger",     unit: "ea", price: 31.25 },
+  { code: "BATTERY PACK",label: "Li-battery pack", unit: "ea", price: 115 },
+  { code: "SOLAR PANEL",label: "Solar Panel", unit: "ea", price: 137.5 },
+  { code: "REMOTE_1CH",  label: "Remote 1CH",  unit: "ea", price: 106.25 },
+  { code: "REMOTE_5CH",  label: "Remote 5CH",  unit: "ea", price: 137.5 },
+  { code: "REMOTE_16CH", label: "Remote 16CH", unit: "ea", price: 470 },
+  { code: "EXTENSION CABLE",label: "EX-Cable", unit: "ea", price: 12 },
+  { code: "HUB",         label: "Hub",         unit: "ea", price: 362.5 },
+];
+
+const ACCESSORY_PRICE_MAP = Object.fromEntries(ACCESSORY_CATALOG.map(a => [a.code, a.price]));
+// ── Accessories: 드롭다운용 옵션/유틸(새 UI)
+const ACC_CAT_OPTS = ["Motor", "Etc"];               // 카테고리는 우선 2종(필요시 확장)
+const ACC_TYPE_OPTS = ["Remote", "Charger", "Hub"];  // Type 목록
+const REMOTE_DETAIL_OPTS = ["1CH","5CH","16CH"];     // Remote 세부
 
 function accUnitOf(code){
   const row = ACCESSORY_CATALOG.find(a=>a.code===code);
@@ -250,7 +284,11 @@ function fracLabel(n){
   return `${n/g}/${32/g}`;
 }
 function sanitizeFileName(s){ return String(s||"JOB").replace(/[\/:*?"<>|]/g,"_"); }
+function getLS(k,d){ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):d; }catch(_){ return d; } }
+function setLS(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(_){} }
 /* sessionStorage helpers: Measure 임시저장 전용 */
+function getSS(k,d){ try{ const r = sessionStorage.getItem(k); return r ? JSON.parse(r) : d; }catch(_){ return d; } }
+function setSS(k,v){ try{ if(v==null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, JSON.stringify(v)); }catch{} }
 // 임시 저장 통일 헬퍼: 세션에 저장
 function persistMeasure(header, items){
   try{
@@ -789,10 +827,36 @@ function buildSplitSummary(it, headerUnit){
 }
 
 /* ---------------- App Data ---------------- */
+const ACCOUNTS=[
+  { email:"worker", role:"worker" },
+  { email:"sales",  role:"sales"  },
+  { email:"admin",  role:"admin"  }
+];
+const ROLE_LABELS = { worker: "Worker", sales: "Sales", admin: "Admin" };
+// ★ 계정별 고정 PIN (코드로만 관리)
+const ACCOUNT_PIN_MAP = {
+  "worker": 2292,
+  "sales":  2292,
+  "admin":  2292,
+};
+
+
 /* UI cols (12-grid) */
 const COL={ 1:"col-span-1 md:col-span-1", 2:"col-span-2 md:col-span-2", 3:"col-span-3 md:col-span-3", 4:"col-span-4 md:col-span-4", 5:"col-span-5 md:col-span-5", 6:"col-span-6 md:col-span-6", 7:"col-span-7 md:col-span-7", 8:"col-span-8 md:col-span-8", 9:"col-span-9 md:col-span-9", 10:"col-span-10 md:col-span-10", 11:"col-span-11 md:col-span-11", 12:"col-span-12 md:col-span-12" };
 
 /* Select options */
+const MOUNT_OPTS=["IN","FF","FW","FD","FC","INF","INW","INC"];
+const BOTTOM_TYPES=["OP","ES","NB"];
+const COLOR_COMMON=["01","02","03","05"];
+const HW_COLOR_LABELS={ "01":"01 (White)","02":"02 (Ivory)","03":"03 (Grey)","05":"05 (Black)" };
+
+// Space 옵션 (중앙집중)
+const SPACE_OPTS = [
+  "Living","Master","Entrance","Kitchen","Dining","Bath","Room","Bonus Room","Window",
+  "Deck Door","Deck Single Door","Door Window","Stairs","Office","Laundry","Flex Room","MANUAL"
+];
+const SPACE_LABELS = { MANUAL: "Manual input" };
+
 /* ---------------- Fabric Seed (FINAL) ---------------- */
 const FABRIC_SEED = {
   families: [
@@ -1583,8 +1647,10 @@ useEffect(() => {
   }
 
   return (
-    <AppShell toasts={UIToasts}>
-      {!booted && <SplashScreen version={APP_VERSION}/>}
+    <div className="min-h-screen bg-white text-gray-900">
+      <style>{`input[type="checkbox"].cbx-25{width:2.5em;height:2.5em;}`}</style>
+
+      {!booted && <Splash/>}
 
       {stage==="login" && (
         <div className="min-h-screen flex items-center justify-center">
@@ -1600,7 +1666,9 @@ useEffect(() => {
           <ScrollNav center />
         </>
       )}
-    </AppShell>
+
+      {UIToasts}
+    </div>
   );
 }
 
@@ -1779,45 +1847,39 @@ function Tabs({ auth, toast }) {
   }
 
   return (
-    <TabsFrame>
+    <div className="min-h-screen">
+      <main className="max-w-6xl mx-auto px-4 py-3">
         {/* 상단: 탭 1줄 + Logout 오른쪽 끝 */}
-        <div className="winco-topbar flex items-center gap-3 w-full">
-          <div className="hidden sm:flex items-center gap-2 shrink-0">
-            <span className="winco-brand-mark">W</span>
-            <div className="leading-tight">
-              <div className="text-sm font-bold">Winco</div>
-              <div className="text-xs text-slate-500">Work Order</div>
-            </div>
-          </div>
-          <div className="flex-1 min-w-0 flex items-center gap-1 overflow-x-auto">
-            <TopNavButton
-              active={tab==="Measure"}
+        <div className="flex items-center gap-1 mb-3 w-full flex-nowrap">
+          <div className="flex-1 min-w-0 flex items-center gap-1">
+            <button
+              className={`px-2 py-1 rounded-lg text-xs sm:text-sm ${tab==="Measure" ? "bg-black text-white" : "border"}`}
               onClick={() => setTab("Measure")}
-            >Measure</TopNavButton>
+            >Measure</button>
 
-            <TopNavButton
-              active={tab==="Drafts"}
+            <button
+              className={`px-2 py-1 rounded-lg text-xs sm:text-sm ${tab==="Drafts" ? "bg-black text-white" : "border"}`}
               onClick={() => setTab("Drafts")}
-            >Drafts</TopNavButton>
+            >Drafts</button>
 
             {(role === "admin" || role === "worker") && (
-              <TopNavButton
-                active={tab==="Office"}
+              <button
+                className={`px-2 py-1 rounded-lg text-xs sm:text-sm ${tab==="Office" ? "bg-black text-white" : "border"}`}
                 onClick={() => setTab("Office")}
-              >Office</TopNavButton>
+              >Office</button>
             )}
 
             {role === "admin" && (
-              <TopNavButton
-                active={tab==="Admin"}
+              <button
+                className={`px-2 py-1 rounded-lg text-xs sm:text-sm ${tab==="Admin" ? "bg-black text-white" : "border"}`}
                 onClick={() => setTab("Admin")}
-              >Admin</TopNavButton>
+              >Admin</button>
             )}
           </div>
 
           {/* Logout */}
           <button
-            className="winco-tab-button shrink-0"
+            className="ml-auto px-3 py-1.5 rounded-lg border shrink-0"
             onClick={logout}
           >
             Logout
@@ -1833,7 +1895,8 @@ function Tabs({ auth, toast }) {
         {role==="admin" && (
           <div className={tab==="Admin"  ? "block" : "hidden"}><Admin /></div>
         )}
-    </TabsFrame>
+      </main>
+    </div>
   );
 }
 
