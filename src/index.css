@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+/* (선택) 전역 유틸 – 우리 레이아웃 기본값 */
+:root { --winco-max: 1280px; }
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+
+/* 컨테이너 유틸 (Tabs/Measure에서 사용) */
+.winco-container { max-width: var(--winco-max); margin-left: auto; margin-right: auto; padding-left: .75rem; padding-right: .75rem; }

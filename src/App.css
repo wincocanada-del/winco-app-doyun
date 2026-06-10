@@ -1,0 +1,54 @@
+/* 화면 공통 컨테이너 */
+#root { min-height: 100vh; }
+
+/* 로그인 중앙 정렬 카드 */
+.login-page{
+  min-height: 100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 24px;
+  background:#111; /* 지금처럼 다크백 쓰는 경우 */
+}
+.login-card{
+  width: 420px;
+  max-width: 92vw;
+  background:#fff;
+  color:#111;
+  border-radius: 12px;
+  padding: 24px 20px;
+  box-shadow: 0 12px 28px rgba(0,0,0,.14);
+}
+/* 그리드 행: PC 12열, 모바일 3열 */
+.row{
+  display:grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+@media (max-width: 768px){
+  .row{ grid-template-columns: repeat(3, 1fr); }
+}
+
+/* PC 열 폭 (span) */
+.col-1{ grid-column: span 1 }
+.col-2{ grid-column: span 2 }
+.col-3{ grid-column: span 3 }
+.col-4{ grid-column: span 4 }
+.col-6{ grid-column: span 6 }
+.col-8{ grid-column: span 8 }
+.col-12{ grid-column: span 12 }
+
+/* 모바일 열 폭 (3열 기준) */
+@media (max-width: 768px){
+  .m-col-1{ grid-column: span 1 }
+  .m-col-2{ grid-column: span 2 }
+  .m-col-3{ grid-column: span 3 }
+}
+
+/* 페이지 좌우 폭 중앙 정렬 */
+.page{
+  max-width: 1200px;      /* PC 기준 폭 */
+  margin: 0 auto;
+  padding: 16px;
+}

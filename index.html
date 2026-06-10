@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <!-- 모바일/노치 대응 + iOS에서 올바른 뷰포트 폭 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <title>WINCO 내부 앱</title>
+
+    <!-- PWA 기본 테마색 (상단 주소창/상태바 색) -->
+    <meta name="theme-color" content="#111827" />
+
+    <!-- 아이콘 (브라우저 파비콘 + iOS 홈화면 아이콘) -->
+    <link rel="icon" href="/icons/icon-192.png" sizes="192x192" />
+    <link rel="icon" href="/icons/icon-512.png" sizes="512x512" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  
+    <!-- manifest 링크는 vite-plugin-pwa가 자동 삽입합니다. -->
+
+    <!-- iOS에서 설치형 실행(전체화면) 옵션 -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
