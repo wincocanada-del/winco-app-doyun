@@ -82,6 +82,39 @@
 * `cmd /c npm run build` succeeded.
 * `npm.cmd run preview -- --host 127.0.0.1 --port 4173` started on fallback port `4174` because `4173` was already in use; HTTP response check succeeded.
 
+## 2026-06-11 - Refactor Admin into Admin feature
+
+### Changed files
+
+* `src/App.jsx`
+* `src/features/admin/AdminPage.jsx`
+* `docs/codex-worklog.md`
+
+### Refactor summary
+
+* Moved the former Admin screen rendering and template-only handlers from `App.jsx` into `src/features/admin/AdminPage.jsx`.
+* Kept the visible menu label as `Admin`.
+* Kept template list, refresh, load to Measure, rename, note update, and delete handling in the extracted Admin feature.
+* Passed existing Supabase template functions and `SUPA_ON` into `AdminPage` so template table names, fields, and payload structures remain unchanged.
+
+### UI summary
+
+* No UI or CSS changes intended.
+* `App.css` was not changed.
+* `index.css` was not changed.
+* No className, menu label, DOM structure, or layout changes intended.
+
+### Functional changes
+
+* No intended functional changes.
+* Template list, refresh, load to Measure, rename, note, and delete behavior were preserved.
+* Measure Save as Template remains in the Measure flow and continues to use the existing `supaUpsertTemplate` logic.
+
+### Build result
+
+* `cmd /c npm run build` succeeded.
+* `npm.cmd run preview -- --host 127.0.0.1 --port 4173` started on fallback port `4174` because `4173` was already in use; HTTP response check succeeded.
+
 ## 2026-06-11 - Refactor Drafts into Quotes feature
 
 ### Changed files
