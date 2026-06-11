@@ -1,3 +1,34 @@
+## 2026-06-11 - Refactor Splash and Login into Auth feature
+
+### Changed files
+
+* `src/App.jsx`
+* `src/features/auth/AuthScreens.jsx`
+* `docs/codex-worklog.md`
+
+### Refactor summary
+
+* Moved the former Splash and Login screen components from `App.jsx` into `src/features/auth/AuthScreens.jsx`.
+* Kept top-level auth restore, `winco_auth` persistence, stage switching, tab entry, and logout behavior in `App.jsx`.
+* Kept the existing PIN login account constants and role labels wired through the extracted Login screen.
+
+### UI summary
+
+* No UI or CSS changes intended.
+* `App.css` was not changed.
+* `index.css` was not changed.
+* No className, menu label, DOM structure, or layout changes intended.
+
+### Functional changes
+
+* No intended functional changes.
+* Splash display, Login display, PIN auth, worker/sales/admin role selection, login-to-tabs transition, and logout flow were preserved.
+
+### Build result
+
+* `cmd /c npm run build` succeeded.
+* `npm.cmd run preview -- --host 127.0.0.1 --port 4175 --strictPort` succeeded; HTTP response check returned `200`.
+
 ## 2026-06-10 - Refactor app constants and helpers
 
 ### Changed files
