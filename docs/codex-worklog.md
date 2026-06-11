@@ -48,6 +48,41 @@
 * `cmd /c npm run build` succeeded.
 * `npm.cmd run preview -- --host 127.0.0.1 --port 4173` started on fallback port `4174` because `4173` was already in use; HTTP response check succeeded.
 
+## 2026-06-11 - Refactor Drafts into Quotes feature
+
+### Changed files
+
+* `src/App.jsx`
+* `src/features/quotes/QuotesPage.jsx`
+* `docs/codex-worklog.md`
+
+### Refactor summary
+
+* Moved the former `DraftsLocal` screen from `App.jsx` into `src/features/quotes/QuotesPage.jsx`.
+* Kept the visible menu label as `Drafts`.
+* Kept draft list rendering, draft detail rendering, Load to Measure, Send to Office, and Delete draft handling in the extracted Quotes feature.
+* Passed existing App helpers and display components into `QuotesPage` so Measure, Office, Admin, calculation, export, Supabase, and localStorage data structures remain unchanged.
+
+### UI summary
+
+* No UI or CSS changes intended.
+* `App.css` was not changed.
+* `index.css` was not changed.
+* No className, menu label, DOM structure, or layout changes intended.
+
+### Functional changes
+
+* No intended functional changes.
+* Draft storage still uses `winco_jobs`.
+* Load to Measure still dispatches `winco_load_measure` and `winco_go_tab`.
+* Send to Office still uses the existing Supabase insert flow and job payload.
+* Delete still removes the selected draft from localStorage.
+
+### Build result
+
+* `cmd /c npm run build` succeeded.
+* `npm.cmd run preview -- --host 127.0.0.1 --port 4173` started on fallback port `4174` because `4173` was already in use; HTTP response check succeeded.
+
 ## 2026-06-11 - Hotfix missing App helpers
 
 ### Changed files
