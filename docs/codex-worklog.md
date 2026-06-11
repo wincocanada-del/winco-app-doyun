@@ -48,6 +48,40 @@
 * `cmd /c npm run build` succeeded.
 * `npm.cmd run preview -- --host 127.0.0.1 --port 4173` started on fallback port `4174` because `4173` was already in use; HTTP response check succeeded.
 
+## 2026-06-11 - Refactor Office into Orders feature
+
+### Changed files
+
+* `src/App.jsx`
+* `src/features/orders/OrdersPage.jsx`
+* `docs/codex-worklog.md`
+
+### Refactor summary
+
+* Moved the former `OfficeCloud` screen from `App.jsx` into `src/features/orders/OrdersPage.jsx`.
+* Kept the visible menu label as `Office`.
+* Kept Office list rendering, Supabase jobs refresh/subscription, job detail rendering, Load to Measure, Delete, and Export handling in the extracted Orders feature.
+* Passed existing App helpers, display components, Supabase functions, and export helpers into `OrdersPage` so payloads, table names, field names, export HTML, and export columns remain unchanged.
+
+### UI summary
+
+* No UI or CSS changes intended.
+* `App.css` was not changed.
+* `index.css` was not changed.
+* No className, menu label, DOM structure, or layout changes intended.
+
+### Functional changes
+
+* No intended functional changes.
+* Office list, detail, refresh, Load to Measure, Delete, and Export flows are preserved.
+* Export filename remains Customer-based.
+* Export still uses the existing Office HTML table generation and download behavior.
+
+### Build result
+
+* `cmd /c npm run build` succeeded.
+* `npm.cmd run preview -- --host 127.0.0.1 --port 4173` started on fallback port `4174` because `4173` was already in use; HTTP response check succeeded.
+
 ## 2026-06-11 - Refactor Drafts into Quotes feature
 
 ### Changed files
