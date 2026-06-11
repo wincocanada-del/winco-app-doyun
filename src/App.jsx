@@ -1,86 +1,74 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 import ScrollNav from "./lib/ScrollNav";
+import { APP_VERSION, SHOW_SQFT_FOOTER, XLS_WITH_SQFT_SUM } from "./data/appConfig";
+import { ACCOUNT_PIN_MAP, ACCOUNTS, ROLE_LABELS } from "./data/accounts";
+import {
+  ACC_CAT_OPTS,
+  ACC_TYPE_OPTS,
+  ACCESSORY_CATALOG,
+  ACCESSORY_PRICE_MAP,
+  BOTTOM_TYPES,
+  COLOR_COMMON,
+  CONTROL_OPTS,
+  CONTROL_SUR,
+  HEADRAIL_OPTS,
+  HDR_TBL,
+  HW_COLOR_LABELS,
+  MOTOR_PRICE,
+  MOTORS,
+  MOUNT_OPTS,
+  REMOTE_DETAIL_OPTS,
+  SPACE_LABELS,
+  SPACE_OPTS,
+  SPRING_ASSIST_PRICE,
+} from "./data/options";
+import {
+  FABRIC_SEED,
+} from "./data/fabrics";
+import { LS_AUTH, LS_FABRIC, LS_JOBS, LS_MEASURE_AUTO, getLS, getSS, setLS, setSS } from "./lib/storage";
+import { SUPA_ON, supabase } from "./lib/supabaseClient";
+import {
+  buildColorOptionsForDisplay,
+  buildFamilyOptionsForDisplay,
+  canonicalFabricNo,
+  runFabricPatches,
+} from "./lib/fabricHelpers";
+import {
+  fracLabel,
+  in2,
+  inToMm,
+  mm1FromIn,
+  mmToIn,
+  nowLocalForInput,
+  nowStamp,
+  round1,
+  round2,
+  sanitizeFileName,
+  splitInches,
+} from "./lib/formatters";
 
 /* ───────────────────────────── Supabase Client ───────────────────────────── */
-const SUPA_URL = import.meta.env.VITE_SUPABASE_URL || "";
-const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-const supabase = (SUPA_URL && SUPA_KEY) ? createClient(SUPA_URL, SUPA_KEY) : null;
-const SUPA_ON = !!supabase;
 
 /* App version */
-const APP_VERSION = "1.0.3"; // 패치내용 : sqft 최소 6, split L or R
 
 /* ---------------- Storage Keys (simple) ---------------- */
-const LS_AUTH         = "winco_auth";
-const LS_JOBS         = "winco_jobs";          // local drafts
-const LS_FABRIC       = "winco_fabric";
-const LS_MEASURE_AUTO = "winco_measure_auto";  // auto-preserve Measure tab
 
 /* ===================== NEW / UPDATED CONSTANTS (Headrail/Control/Duo) ===================== */
 // Headrail 옵션 (표기는 약어만)
-const HEADRAIL_OPTS = ["SL","OR","ZSL","ZST","3FA","4FA(Duo)","ZRO"];
 
 // Control 옵션 (라벨상 Control, 기능적으로 cordType 그대로 사용)
-const CONTROL_OPTS = ["CH","STR","WC","CLF","CLS","CLO", "Motor"];
 
 // Control 서브차지 ($)
-const CONTROL_SUR = { CLF:16, CLS:30, CLO:24, WC:25 };
 
 // Spring Assist ($)
-const SPRING_ASSIST_PRICE = 16;
 
 // ── Feature toggles (쉽게 on/off)
-const SHOW_SQFT_FOOTER = true;   // Review 표 아래 "Total Sqft" 한 줄 표시
-const XLS_WITH_SQFT_SUM = true;  // (Office 엑셀) Items 마지막에 Sqft 합계행 추가
 
 // Motor 라인업
-const MOTORS = [
-  { code:"AK25", label:"A-OK AM25D (ZIGBEE)", price:240 },
-  { code:"S28",  label:"Somfy Sonesse 28 WireFree RTS", price:560 },
-  { code:"S30",  label:"Somfy Sonesse 30 RTS",           price:790 },
-  { code:"S40",  label:"Somfy Sonesse 40 RTS",           price:920 },
-];
-const MOTOR_PRICE = Object.fromEntries(MOTORS.map(m=>[m.code, m.price]));
-
 // Headrail 폭별 서브차지 테이블 (3FA/4FA(ZSL/ZST 포함), in → $)
-const HDR_TBL = {
-  "3FA": {
-    tiers: [[30,48],[36,57],[42,66],[48,75],[54,84],[60,93],[66,102],[72,111],[78,120],[84,129],[90,138],[96,147],[102,156],[108,165]],
-    per6: 9
-  },
-  "4FA(Duo)": {
-    tiers: [[30,60],[36,71],[42,82],[48,93],[54,104],[60,115],[66,126],[72,137],[78,148],[84,159],[90,170],[96,181],[102,192],[108,203]],
-    per6: 11
-  },
-  "ZSL": {
-    tiers: [[30,55],[36,65],[42,75],[48,85],[54,95],[60,105],[66,115],[72,125],[78,135],[84,145],[90,155],[96,165],[102,175],[108,185]],
-    per6: 10
-  },
-  "ZST": {
-    tiers: [[30,75],[36,90],[42,105],[48,120],[54,135],[60,150],[66,165],[72,180],[78,195],[84,210],[90,225],[96,240],[102,255],[108,270]],
-    per6: 15
-  }
-};
+// Remote 세부
 
-
-// ✅ 새 악세서리 카탈로그 (확장 가능)
-const ACCESSORY_CATALOG = [
-  { code: "CHARGER",     label: "Charger",     unit: "ea", price: 31.25 },
-  { code: "BATTERY PACK",label: "Li-battery pack", unit: "ea", price: 115 },
-  { code: "SOLAR PANEL",label: "Solar Panel", unit: "ea", price: 137.5 },
-  { code: "REMOTE_1CH",  label: "Remote 1CH",  unit: "ea", price: 106.25 },
-  { code: "REMOTE_5CH",  label: "Remote 5CH",  unit: "ea", price: 137.5 },
-  { code: "REMOTE_16CH", label: "Remote 16CH", unit: "ea", price: 470 },
-  { code: "EXTENSION CABLE",label: "EX-Cable", unit: "ea", price: 12 },
-  { code: "HUB",         label: "Hub",         unit: "ea", price: 362.5 },
-];
-
-const ACCESSORY_PRICE_MAP = Object.fromEntries(ACCESSORY_CATALOG.map(a => [a.code, a.price]));
-// ── Accessories: 드롭다운용 옵션/유틸(새 UI)
-const ACC_CAT_OPTS = ["Motor", "Etc"];               // 카테고리는 우선 2종(필요시 확장)
-const ACC_TYPE_OPTS = ["Remote", "Charger", "Hub"];  // Type 목록
-const REMOTE_DETAIL_OPTS = ["1CH","5CH","16CH"];     // Remote 세부
+const COL={ 1:"col-span-1 md:col-span-1", 2:"col-span-2 md:col-span-2", 3:"col-span-3 md:col-span-3", 4:"col-span-4 md:col-span-4", 5:"col-span-5 md:col-span-5", 6:"col-span-6 md:col-span-6", 7:"col-span-7 md:col-span-7", 8:"col-span-8 md:col-span-8", 9:"col-span-9 md:col-span-9", 10:"col-span-10 md:col-span-10", 11:"col-span-11 md:col-span-11", 12:"col-span-12 md:col-span-12" };
 
 function accUnitOf(code){
   const row = ACCESSORY_CATALOG.find(a=>a.code===code);
@@ -96,6 +84,16 @@ function codeFrom(type, detail){
   if(type==="Charger") return "CHARGER";
   if(type==="Hub")     return "HUB";
   return "";
+}
+
+function normalizeCordType(v){
+  const s = String(v || "").trim();
+  const u = s.toUpperCase();
+  if (u === "STRING" || u === "STR") return "STR";
+  if (u === "CHAIN" || u === "CH") return "CH";
+  if (u === "CORDLESS") return "CLF";
+  if (u === "MOTOR") return "Motor";
+  return s;
 }
 
 /* === Compatibility resolver (fix for #1, #4-2) === */
@@ -256,47 +254,11 @@ function normalizeBottomBy(cat, upType, cur){
 }
 
 
-/* ---------------- Utils ---------------- */
-const pad = n=>String(n).padStart(2,"0");
-function nowStamp(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
-function nowLocalForInput(){ const d=new Date(); const y=d.getFullYear(), m=pad(d.getMonth()+1), day=pad(d.getDate()); const hh=pad(d.getHours()), mm=pad(d.getMinutes()); return `${y}-${m}-${day}T${hh}:${mm}`; }
-function round2(n){ return Math.round((Number(n)||0)*100)/100; }
-function inToMm(inch){ return Math.round((Number(inch)||0)*25.4); }
-function mmToIn(mm){ return (Number(mm)||0)/25.4; }
-
-// ▼ 리뷰/엑셀 표기용 포맷 유틸
-function round1(n){ return Math.round((Number(n)||0)*10)/10; }
-// inch → mm(소수1)
-function mm1FromIn(inch){ return round1((Number(inch)||0)*25.4); }
-// inch(소수2)
-function in2(nInch){ return round2(Number(nInch)||0); }
-function gcd(a,b){ a=Math.abs(a); b=Math.abs(b); while(b){ const t=a%b; a=b; b=t; } return a||1; }
-function splitInches(totalIn){
-  let t=Number(totalIn)||0, ft=Math.floor(t/12), rem=t-ft*12, inch=Math.floor(rem), frac32=Math.round((rem-inch)*32);
-  if(frac32===32){ frac32=0; inch+=1; } if(inch===12){ inch=0; ft+=1; }
-  return { ft, inch, frac32 };
-}
-function fracLabel(n){
-  n = Number(n) || 0;
-  if (n <= 0)  return "0";
-  if (n >= 32) return "1";
-  const g = gcd(n, 32);
-  return `${n/g}/${32/g}`;
-}
-function sanitizeFileName(s){ return String(s||"JOB").replace(/[\/:*?"<>|]/g,"_"); }
-function getLS(k,d){ try{ const r=localStorage.getItem(k); return r?JSON.parse(r):d; }catch(_){ return d; } }
-function setLS(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(_){} }
-/* sessionStorage helpers: Measure 임시저장 전용 */
-function getSS(k,d){ try{ const r = sessionStorage.getItem(k); return r ? JSON.parse(r) : d; }catch(_){ return d; } }
-function setSS(k,v){ try{ if(v==null) sessionStorage.removeItem(k); else sessionStorage.setItem(k, JSON.stringify(v)); }catch{} }
-// 임시 저장 통일 헬퍼: 세션에 저장
 function persistMeasure(header, items){
   try{
     setSS(LS_MEASURE_AUTO, { header, items, savedAt: Date.now() });
   }catch{}
 }
-
-function prettyCode(code){ if(!code) return ""; const s=String(code).replace(/\s+/g," ").trim(); const m=s.match(/^([A-Za-z]+)\s*(\d+)/); return m?(m[1].toUpperCase()+" "+m[2]):s.toUpperCase(); }
 
 // ── Motor Type 경고 및 안내 문구
 const TIP_SHORT = "Select headrail first";
@@ -349,12 +311,11 @@ function lenValue(it) {
   return "";
 }
 
-/** 화면에 보이는 동일 id 노드 1개를 찾아 반환 (모바일/데스크톱 중 보이는 것) */
+/* ── Numeric typography (iPad 숫자폭 깨짐 대응) ───────────────── */
 function getVisibleById(id){
   const safe = String(id).replace(/"/g, '\\"');
   const list = Array.from(document.querySelectorAll(`[id="${safe}"]`));
 
-  // 완전 숨김이거나 크기 0인 노드는 제외
   const visible = list.filter(node => {
     const s = window.getComputedStyle(node);
     const rect = node.getBoundingClientRect();
@@ -366,32 +327,26 @@ function getVisibleById(id){
     );
   });
 
-  // 우선 보이는 것, 없으면 첫 번째
   return visible[0] || list[0] || null;
 }
 
-/** 해당 id로 부드럽게 스크롤 + 포커스 + 하이라이트 */
 function focusAndScrollTo(id){
   const el = getVisibleById(id);
   if(!el) return;
 
-   // ★ 1) 먼저 스크롤
   el.scrollIntoView({ behavior:"smooth", block:"center", inline:"nearest" });
 
-  // ★ 2) 실포커스 대상: input/select/textarea 우선
   let focusTarget = el;
   if (!/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName) && el.tabIndex < 0) {
     const child = el.querySelector('input, select, textarea, [tabindex]:not([tabindex="-1"])');
     if (child) focusTarget = child;
   }
-  // 브라우저 기본 포커스 완료 후 다음 프레임에 포커스(더 안정적)
   requestAnimationFrame(()=>{
     if (typeof focusTarget.focus === "function") {
       try{ focusTarget.focus({ preventScroll:true }); }catch{}
     }
   });
 
-  // 가로 스크롤 컨테이너 보정(overflow-x-auto 등)
   const scroller = el.closest('[data-scrollable="x"], .overflow-x-auto, .horizontal-scroll');
   if(scroller){
     const r = el.getBoundingClientRect();
@@ -399,7 +354,6 @@ function focusAndScrollTo(id){
     scroller.scrollBy({ left: (r.left - s.left) - 24, behavior:"smooth" });
   }
 
-  // 하이라이트 효과
   const prevOutline = el.style.outline, prevOffset = el.style.outlineOffset, prevShadow = el.style.boxShadow;
   el.style.outline = "3px solid #e11d48";
   el.style.outlineOffset = "2px";
@@ -407,783 +361,11 @@ function focusAndScrollTo(id){
   setTimeout(()=>{ el.style.outline = prevOutline; el.style.outlineOffset = prevOffset; el.style.boxShadow = prevShadow; }, 1600);
 }
 
-/** 부족한 값이 있는 필드로 자동 스크롤+포커스 (단일/DUO 공용) */
-function focusMissingForItem(it, idx) {
-  const n = idx + 1;
-  const isDuo   = it.upType === "4FA(Duo)";
-  const manA    = it.fabric  === "MANUAL";
-  const manB    = it.fabricB === "MANUAL";
-
-  // 공통(먼저 A측)
-  if (!it.category)                       return focusAndScrollTo(`row-${n}-category`);
-  if (!it.fabric && it.fabric !== "MANUAL") return focusAndScrollTo(isDuo ? `row-${n}-fabricA` : `row-${n}-fabric`);
-  if (!manA && !it.color)                 return focusAndScrollTo(isDuo ? `row-${n}-colorA`  : `row-${n}-color`);
-  if ((manA || false) && !(Number(it.price) >= 0)) return focusAndScrollTo(`row-${n}-price`);
-
-  if (!isDuo) return false; // 단일이면 여기서 끝
-
-  // B측
-  if (!it.categoryB)                      return focusAndScrollTo(`row-${n}-categoryB`);
-  if (!it.fabricB && it.fabricB !== "MANUAL") return focusAndScrollTo(`row-${n}-fabricB`);
-  if (!manB && !it.colorB)                return focusAndScrollTo(`row-${n}-colorB`);
-  if ((manB || false) && !(Number(it.priceB) >= 0)) return focusAndScrollTo(`row-${n}-priceB`);
-
-  return false;
-}
-
-/* Cord 타입 정규화: 과거 데이터 호환 */
-function normalizeCordType(v){
-  const s=String(v||"").trim(); const u=s.toUpperCase();
-  if(u==="STRING"||u==="STR") return "STR";
-  if(u==="CHAIN"||u==="CH") return "CH";
-  if(u==="CORDLESS") return "CLF";     // ← Cordless = CLF로 귀속
-  if(u==="MOTOR") return "Motor";
-  return s||"";
-}
 function normalizeItem(it){
   if(!it) return it;
   const ct = normalizeCordType(it.cordType);
   return { ...it, cordType: ct, include: it?.include !== false };
 }
-/* ===== Export helpers (Office > Export에서만 사용) ===== */
-const XL_STYLE = {
-  fontFamily: "font-family: Calibri, 'Malgun Gothic', Arial, sans-serif;",
-  headBg: "background:#eef2f7;",
-  infoBg: "background:#f5f6f8;",
-  totalBg: "background:#f9fafb;",
-  border: "border:1px solid #c9d2e0;",
-  th: "font-weight:700;text-align:center;",
-  td: "font-weight:400;text-align:left;",
-  tdCenter: "text-align:center;",
-  tdRight: "text-align:right;",
-  h1: "font-weight:700;font-size:14px;padding:6px 8px;",
-  h2: "font-weight:600;font-size:12px;padding:4px 6px;",
-  cell: "padding:4px 6px;",
-  money: "mso-number-format:'\\0022$\\0022#,##0.00';",
-  int: "mso-number-format:'0';",
-  dec1: "mso-number-format:'0.0';",   // mm(소수1)
-  dec2: "mso-number-format:'0.00';",  // inch total(소수2)
-};
-
-function appendSqftTotalRow(headers, body, excludedFlags = []) {
-  const idx = headers.indexOf("Sqft");
-  if (idx < 0) return;
-
-  let sum = 0;
-  for (let i = 0; i < body.length; i++) {
-    const isExcluded = excludedFlags[i] === true;
-    const v = Number(body[i][idx]);
-    if (!isExcluded && Number.isFinite(v)) sum += v;
-  }
-
-  const total = Array(headers.length).fill("");
-  total[idx] = sum;
-  // (원하면 라벨 추가) total[Math.max(0, idx-1)] = "Total Sqft";
-  body.push(total);
-}
-
-
-function sectionTitleHTML(title, colSpan){
-  return `<tr><td colspan="${colSpan}" style="${XL_STYLE.h1}${XL_STYLE.border}${XL_STYLE.headBg}">${esc(title)}</td></tr>`;
-}
-function xDash(v){ return (v==null || v==="") ? "-" : v; }
-function xBool(v){ return v ? "Y" : "-"; }
-
-/* HTML escape (엑셀용 HTML 테이블 생성 시) */
-function esc(s){
-  return String(s==null?"":s)
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;");
-}
-function makeOptionsLabelRow(headers){
-  // 옵션 블록의 첫 헤더인 "Spring Assist"의 인덱스를 찾는다.
-  const optStartIdx = headers.indexOf("Spring Assist");
-  if (optStartIdx < 0) return ""; // 못 찾으면(예: 구버전) 아무 것도 출력하지 않음
-
-  // 옵션 칼럼 전체 개수(끝까지 병합)
-  const optSpan = headers.length - optStartIdx;
-
-  // 옵션 앞부분(일반 칼럼들)은 빈 셀로 채워 정렬 유지
-  const blanks = Array(optStartIdx)
-    .fill(`<td style="${XL_STYLE.cell}${XL_STYLE.border}"></td>`)
-    .join("");
-
-  // 요구사항: "맑은 고딕 9pt Bold"로, 옵션 영역 시작에 라벨 삽입
-  const mergedStyle =
-    `font-family:'Malgun Gothic','맑은 고딕',Calibri,Arial,sans-serif;` +
-    `font-size:9pt;font-weight:700;` +
-    XL_STYLE.cell + XL_STYLE.headBg + XL_STYLE.border;
-
-  const merged = `<td colspan="${optSpan}" style="${mergedStyle}">Options / Extras</td>`;
-
-  // 한 줄짜리 라벨 행 반환 (thead 위에 꽂아 넣을 예정)
-  return `<tr>${blanks}${merged}</tr>`;
-}
-
-/* ===== Excel/CSV 테이블 렌더러 (makeOptionsLabelRow 바로 아래) ===== */
-
-/** 숫자 여부 간단 체크 */
-function isNum(v){ return typeof v === "number" && isFinite(v); }
-
-/** CSV 셀 이스케이프 */
-function csvEsc(v){
-  const s = String(v ?? "");
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
-  return s;
-}
-
-/**
- * Excel용 HTML 테이블 생성 (엑셀에서 바로 열리는 HTML)
- * @param {string[]} headers
- * @param {any[][]} body
- * @param {{title?:string, subtitle?:string}} meta
- */
-function xlsTableHTML(headers, body, meta={}){
-  const h = (s)=>esc(s==null?"":String(s));
-  const title    = meta.title    ? h(meta.title)    : "Export";
-  const subtitle = meta.subtitle ? h(meta.subtitle) : "";
-
-  // 헤더
-  const headCells = headers.map(hd =>
-    `<th style="${XL_STYLE.th}${XL_STYLE.cell}${XL_STYLE.border}">${h(hd)}</th>`
-  ).join("");
-
-  // 옵션 라벨(“Spring Assist” 지점부터 병합 타이틀)
-  const optionsLabelRow = makeOptionsLabelRow(headers);
-  const sectionAuto = meta.sectionTitle || (headers.includes("Spring Assist") ? "Items" : null);
-
-  // 통화 헤더 감지
-  const moneyHeader = new Set(
-    headers.filter(v => /\$/.test(v) || /^(Blind|Surcharge|Line Total|Motor \$)$/.test(v))
-  );
-  
-  // 소수 자리 서식 적용 대상
-  const dec1Header = new Set(["W(mm)","H(mm)"]);                 // 1자리
-  const dec2Header = new Set(["W Total (in)","H Total (in)"]);   // 2자리
-
-  // ▼ 32분수 → "약분 문자열"로 표시할 헤더
-const fracHeader = new Set(["W(/32)","H(/32)"]);
-
-function tdFrac(n, extraStyle=""){
-  const base = `${XL_STYLE.cell}${XL_STYLE.border}${XL_STYLE.tdRight}`;
-  // 숫자 서식(mso-number-format) 적용하지 말고 "텍스트"로 넣어야 약분표기가 그대로 보임
-  return `<td style="${base}${extraStyle}">${esc(fracLabel(n))}</td>`;
-}
-
-  const isExcludedRow = (ri) => {
-    if (!meta) return false;
-    const s = meta.excludedRowSet;
-    if (!s) return false;
-    if (s instanceof Set) return s.has(ri);
-    if (Array.isArray(s)) return !!s[ri];
-    return false;
-  };
-
-  // 숫자 셀 (헤더별 서식 선택)
-function tdNum(val, header, extraStyle="") {
-  const base = `${XL_STYLE.cell}${XL_STYLE.border}${XL_STYLE.tdRight}`;
-  let fmt = XL_STYLE.int;
-  if (moneyHeader.has(header)) fmt = XL_STYLE.money;
-  else if (dec1Header.has(header)) fmt = XL_STYLE.dec1;
-  else if (dec2Header.has(header)) fmt = XL_STYLE.dec2;
-  return `<td style="${base}${fmt}${extraStyle}">${esc(String(val))}</td>`;
-}
-
-  // 본문
-const MUTED = "color:#9ca3af;background:#f3f4f6;"; // text-gray-400 + bg-gray-100 느낌
-
-const rowsHTML = body.map((row, ri)=>{
-  const excluded = isExcludedRow(ri); // ← 위에 이미 정의됨
-  const tds = row.map((cell, ci)=>{
-    const h = headers[ci] || "";
-    const base = `${XL_STYLE.cell}${XL_STYLE.border}`;
-    const muted = excluded ? MUTED : "";
-    
-    // 제외 시 '값을 숨길 헤더' 규칙: 금액 계열 + Sqft
-      const shouldDashWhenExcluded =
-      excluded && (moneyHeader.has(h) || h === "Sqft");
-
-    // /32 분수
-    if (fracHeader.has(h)) {
-      return tdFrac(cell, muted);
-    }
-
-    // 숫자 셀: 제외 + (금액/Sqft) 만 하이픈, 그 외 숫자는 값 유지(회색)
-    if (isNum(cell)) {
-      if (shouldDashWhenExcluded) {
-        return `<td style="${base}${XL_STYLE.tdRight}${muted}">-</td>`;
-      }
-      return tdNum(cell, h, muted);
-    }
-
-    // 일반 텍스트(Loc 등) → 제외행이면 회색
-    return `<td style="${base}${XL_STYLE.td}${muted}">${esc(cell)}</td>`;
-  }).join("");
-
-  return `<tr>${tds}</tr>`;
-}).join("");
-
-  // 상단 정보
-  const infoTop = `
-    <tr><td colspan="${headers.length}" style="${XL_STYLE.h1}${XL_STYLE.border}${XL_STYLE.headBg}">
-      ${title}${subtitle ? ` — <span style="font-weight:400">${subtitle}</span>` : ""}
-    </td></tr>
-  `;
-
-  // 최종 HTML
-  return `
-<!DOCTYPE html>
-<html><head><meta charset="utf-8"></head><body>
-<table cellspacing="0" cellpadding="0" style="${XL_STYLE.fontFamily};border-collapse:collapse;">
-  ${infoTop}
-    <thead>
-    ${sectionAuto ? sectionTitleHTML(sectionAuto, headers.length) : ""}
-    ${optionsLabelRow}
-    <tr>${headCells}</tr>
-  </thead>
-  <tbody>
-    ${rowsHTML}
-  </tbody>
-</table>
-</body></html>`;
-}
-
-/* ===== Export wiring (NEW) ===== */
-/** 테이블 데이터 생성: headers, body, excludedFlags, meta(excludedRowSet 포함) */
-function buildExportTableData(header = {}, items = []) {
-  const hasDuo = (items || []).some(it => it.upType === "4FA(Duo)");
-
-  const headers = [
-    "No","Loc","Fabric","MT","HR","BT","Ctrl","L/R","Len",
-    "W(mm)","H(mm)","Sqft",
-    ...(hasDuo ? ["$/Sqft A","$/Sqft B"] : ["$/Sqft"]),
-    "Blind $","Surcharge $","Motor $","Line $"
-  ];
-
-  const body = [];
-  const excludedFlags = [];
-
-  (items || []).forEach((it, i) => {
-    const excluded = it?.include === false;
-    excludedFlags.push(excluded);
-    const c = computeLine(it);
-    const fabricNo = canonicalFabricNo(it) || "";
-    const wmm = mm1FromIn(it.wIn);
-    const hmm = mm1FromIn(it.hIn);
-    const common = [
-      i+1,
-      titleOf(it)||"Location",
-      fabricNo,
-      it.install||"",
-      it.upType ? `${it.upType} ${it.upClr||""}`.trim() : "",
-      it.btType ? `${it.btType} ${it.btClr||""}`.trim() : "",
-      normalizeCordType(it.cordType||""),
-      lrValue(it),
-      lenValue(it),
-      Number.isFinite(wmm)?wmm:0,
-      Number.isFinite(hmm)?hmm:0,
-      c.sqft
-    ];
-    const priceCols = hasDuo
-      ? [Number(it.price||0), it.upType==="4FA(Duo)" ? Number(it.priceB||0) : 0]
-      : [Number(it.price||0)];
-    const moneyCols = [c.blind, c.surcharge, c.motor||0, c.lineTotal];
-    body.push([...common, ...priceCols, ...moneyCols]);
-        // --- Split summary row (optional, under this blind) ---
-    const splitInfo = buildSplitSummary(it, header?.unit);
-    if (splitInfo) {
-      const pieces = splitInfo.labels
-        .map((lab, idx) => {
-          const len = splitInfo.lensTexts[idx];
-          if (!len) return "";
-          const ctrl = (splitInfo.ctrls?.[idx] || "").toUpperCase();
-          const ctrlText = (ctrl === "L" || ctrl === "R") ? ` (${ctrl})` : "";
-          return `${lab} ${len}${ctrlText}`;
-        })
-        .filter(Boolean);
-
-      if (pieces.length) {
-        const splitText = `Split (${splitInfo.unit}): ${pieces.join(" / ")}`;
-
-        // 전체 컬럼 수 만큼 빈 셀 행을 하나 만든다.
-        const splitRow = new Array(headers.length).fill("");
-        // 두 번째/세 번째 칸에 내용 채우기 (Loc / Fabric 쪽 라인)
-        splitRow[1] = " * Split";
-        splitRow[2] = splitText;
-
-        body.push(splitRow);
-      }
-    }
-  });
-
-  if (XLS_WITH_SQFT_SUM) {
-    appendSqftTotalRow(headers, body, excludedFlags);
-  }
-
-  const excludedSet = new Set();
-  excludedFlags.forEach((ex, idx)=>{ if(ex) excludedSet.add(idx); });
-
-  const title = sanitizeFileName(header.title || header.customer || "JOB");
-  const subtitleBits = [ nowStamp(), (header.customer||"").trim(), (header.address||"").trim() ].filter(Boolean);
-
-  return {
-    headers,
-    body,
-    meta: { title, subtitle: subtitleBits.join(" · "), excludedRowSet: excludedSet }
-  };
-}
-
-/** HTML→.xls 다운로드 */
-function downloadXLS(filename, html) {
-  const blob = new Blob([html], { type:"application/vnd.ms-excel;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = sanitizeFileName(filename).replace(/\.xls$/i,"") + ".xls";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-/** Office Export 엔트리(버튼에서 이 함수를 호출) */
-function exportOfficeXLS(header, items) {
-  const { headers, body, meta } = buildExportTableData(header, items);
-  const html = xlsTableHTML(headers, body, meta);
-  downloadXLS(meta.title || "Export", html);
-}
-
-/** CSV 문자열 생성 */
-function toCSV(headers, body){
-  const top = headers.map(csvEsc).join(",");
-
-  // 분수 헤더 셋 재사용(없으면 위에서 만든 걸 클로저로 잡음)
-  const fracHeader = new Set(["W(/32)","H(/32)"]);
-
-  const lines = body.map(r => r.map((v, i) => {
-    const h = headers[i] || "";
-    if (fracHeader.has(h)) {
-      return csvEsc(fracLabel(v));      // ← "3/8"
-    }
-    return isNum(v) ? v : csvEsc(v);
-  }).join(","));
-  return [top, ...lines].join("\n");
-}
-
-
-/* ft/in/32 분해: exportXLS에서 요구하는 키(ft, inch, frac32)로 맞춤 */
-function splitFtIn32(totalIn){
-  const r = splitInches(totalIn);
-  return { ft:r.ft, inch:r.inch, frac32:r.frac32 };
-}
-
-// Split 정보(리뷰/엑셀 공용) 정리
-function buildSplitSummary(it, headerUnit){
-  const N = Number(it?.splitN || 0);
-  if (!N || N < 2) return null;
-
-  const LABELS = {
-    2: ["1L","2R"],
-    3: ["1L","2M","3R"],
-    4: ["1LL","1L","2R","2RR"],
-    5: ["1LL","2L","3M","4R","5RR"],
-    6: ["1LLL","2LL","3L","4R","5RR","6RRR"],
-    7: ["1LLL","2LL","3L","4M","5R","6RR","7RRR"],
-  };
-
-  const unitDefault =
-    headerUnit === "mm" ? "mm"
-    : headerUnit === "in" ? "in"
-    : "ft-in";
-
-  const unit = it.splitUnit || unitDefault;
-  const labels = (LABELS[N] || []).slice(0, N);
-  const srcLens = (it.splitLens || []).slice(0, N);
-
-  const lensTexts = srcLens.map((raw) => {
-    if (raw === "" || raw == null) return "";
-    if (unit === "ft-in") {
-      // ft-in 모드는 splitLens에 총 인치가 들어있다고 가정 → 소수 2자리
-      const n = in2(raw);
-      return Number.isFinite(n) ? String(n) : "";
-    } else {
-      const n = Number(raw);
-      if (!Number.isFinite(n)) return "";
-      // 앞자리 0 제거 + 소수 1자리
-      return String(round1(n));
-    }
-  });
-
-   return {
-    count: N,
-    unit,
-    labels,
-    lensTexts,                         // ["71","72", ...]
-    ctrls: Array.from({length: N}, (_,i)=> String(it.splitCtrl?.[i] ?? "-").toUpperCase()),
-    labelsJoined: labels.join("|"),    // "1LL|2L|3M|..."
-    lensJoined:  lensTexts.join("|"),  // "71|72|..."
-  };
-}
-
-/* ---------------- App Data ---------------- */
-const ACCOUNTS=[
-  { email:"worker", role:"worker" },
-  { email:"sales",  role:"sales"  },
-  { email:"admin",  role:"admin"  }
-];
-const ROLE_LABELS = { worker: "Worker", sales: "Sales", admin: "Admin" };
-// ★ 계정별 고정 PIN (코드로만 관리)
-const ACCOUNT_PIN_MAP = {
-  "worker": 2292,
-  "sales":  2292,
-  "admin":  2292,
-};
-
-
-/* UI cols (12-grid) */
-const COL={ 1:"col-span-1 md:col-span-1", 2:"col-span-2 md:col-span-2", 3:"col-span-3 md:col-span-3", 4:"col-span-4 md:col-span-4", 5:"col-span-5 md:col-span-5", 6:"col-span-6 md:col-span-6", 7:"col-span-7 md:col-span-7", 8:"col-span-8 md:col-span-8", 9:"col-span-9 md:col-span-9", 10:"col-span-10 md:col-span-10", 11:"col-span-11 md:col-span-11", 12:"col-span-12 md:col-span-12" };
-
-/* Select options */
-const MOUNT_OPTS=["IN","FF","FW","FD","FC","INF","INW","INC"];
-const BOTTOM_TYPES=["OP","ES","NB"];
-const COLOR_COMMON=["01","02","03","05"];
-const HW_COLOR_LABELS={ "01":"01 (White)","02":"02 (Ivory)","03":"03 (Grey)","05":"05 (Black)" };
-
-// Space 옵션 (중앙집중)
-const SPACE_OPTS = [
-  "Living","Master","Entrance","Kitchen","Dining","Bath","Room","Bonus Room","Window",
-  "Deck Door","Deck Single Door","Door Window","Stairs","Office","Laundry","Flex Room","MANUAL"
-];
-const SPACE_LABELS = { MANUAL: "Manual input" };
-
-/* ---------------- Fabric Seed (FINAL) ---------------- */
-const FABRIC_SEED = {
-  families: [
-    // ===== Dual =====
-    { category:"Dual", name:"Pluto (B/O)", price:23.8,
-      codes:["PLU 100 (Ivory)","PLU 200 (Beige)","PLU 300 (Grey)","PLU 400 (Brown)","PLU 410 (Chocolate)","PLU 420 (Khaki)","PLU 510 (Charcoal)"] },
-    { category:"Dual", name:"Roselle (B/O)", price:20.8,
-      codes:["RS 600 (RS001 – Pure White)","RS 601 (RS001 – White)"] },
-    { category:"Dual", name:"Sun Flare (B/O)", price:20.8,
-      codes:["SF 600 (SF001 – White)","SF 610 (SF002 – Milk)","SF 300 (SF006 – Grey)","SF 310 (SF004 – Light Grey)","SF 320 (SF007 – Dark Grey)","SF 400 (SF008 – Brown)"] },
-    { category:"Dual", name:"Signature", price:20.8,
-      codes:["SIG 230 (Coconut)","SIG 310 (Light Grey)","SIG 320 (Dark Grey)","SIG 330 (Warm Grey)","SIG 500 (Black)","SIG 520 (Sand Black)","SIG 530 (Anthracite)"] },
-    { category:"Dual", name:"Libra (B/O)", price:17.8,
-      codes:["LIB 100 (Ivory)","LIB 200 (Beige)","LIB 300 (Grey)","LIB 400 (Brown)","LIB 410 (Choco)"] },
-    { category:"Dual", name:"Top (B/O)", price:18.4,
-      codes:["TOP 220 (Mushroom)","TOP 300 (Grey)","TOP 320 (Dark Grey)","TOP 600 (White)"] },
-    { category:"Dual", name:"Le Pearl (Montblanc Pearl)", price:19.9,
-      codes:["PER 200 (Beige)","PER 300 (Grey)","PER 400 (Brown)","PER 600 (White)","PER 700 (Blue)"] },
-    { category:"Dual", name:"Esparro (Evian)", price:18.4,
-      codes:["ESP 100 (Ivory)","ESP 210 (Light Beige)","ESP 310 (Light Grey)","ESP 400 (Brown)","ESP 500 (Black)"] },
-    { category:"Dual", name:"Comet (Cosmo)", price:18.4,
-      codes:["COM 320 (Dark Grey)","COM 410 (Chocolate)","COM 500 (Black)"] },
-    { category:"Dual", name:"Lucca 2 Tone", price:18.4,
-      codes:["LC 300 (Grey)","LC 310 (Light Grey)"] },  // 표시: OLE
-    { category:"Dual", name:"Somnia", price:18.4,
-      codes:["SN 300 (SN005 – Grey)","SN 310 (SN004 – Light Grey)"] },
-    { category:"Dual", name:"Mille (Plain/Eva)", price:18.4,
-      codes:["MIE 310 (Geurache) / Plain","MIE 330 (Sand) / Eva","MIE 340 (Taupe) / Eva","MIE 400 (Latte) / Plain","MIE 410 (Choco) / Eva","MIE 600 (White) / Plain"] },
-    { category:"Dual", name:"Luna (Diamond)", price:16.2,
-      codes:["LUN 300 (Grey)","LUN 330 (Sand)","LUN 600 (White)"] },
-    { category:"Dual", name:"Nature (Natural)", price:14.6,
-      codes:["NAT 300 (Grey) / Natural","NAT 410 (Choco) / Natural","NAT 420 (Khaki)","NAT 430 (Teak)","NAT 500 (Black) / Natural","NAT 600 (Ice White) / Natural","NAT 620 (Mushroom) / Natural","NAT 710 (Sky Blue)","NAT 810 (Olive)","NAT 900 (Pink)","NAT 930 (Orange)"] },
-    { category:"Dual", name:"1 Linear (Pucker 1)", price:16.2,
-      codes:["1LIN 100 (Ivory)","1LIN 400 (Brown)","1LIN 410 (Choco)"] },
-    { category:"Dual", name:"7 Linear (Pucker 7)", price:16.2,
-      codes:["7LIN 100 (Ivory)","7LIN 200 (Beige)","7LIN 800 (Green)","7LIN 900 (Pink)","7LIN 910 (Wine)","7LIN 920 (Purple)"] }, // 600 제거
-    { category:"Dual", name:"Zio (Basic)", price:13.1,
-      codes:["ZIO 100 (Ivory)","ZIO 300 (Grey)","ZIO 410 (Choco)","ZIO 500 (Black)","ZIO 440 (Taupe)"] },
-    { category:"Dual", name:"Aries (Polaris)", price:16.2,
-      codes:["ARI 300 (Grey)","ARI 320 (Dark Grey)"] },
-
-    // ===== Roller =====
-    { category:"Roller", name:"MC (B/O)", price:17.5,
-      codes:["MC 200 (Beige)","MC 600 (White)"] },
-    { category:"Roller", name:"AL (B/O)", price:16.8,
-      codes:["AL 600 (White)"] },
-    { category:"Roller", name:"MC", price:14.7,
-      codes:["MC 200 (Beige)","MC 600 (White)"] },
-    { category:"Roller", name:"TS (Tashkent Single)", price:13.5,
-      codes:["TS 300 (Grey)","TS 600 (White)"] },
-    { category:"Roller", name:"DN (Single)", price:13.5,
-      codes:["DN 600 (White)"] },
-    { category:"Roller", name:"DN-D", price:12.5,
-      codes:["DN 600 (White)"] },
-    { category:"Roller", name:"Sky", price:12.5,
-      codes:["SKY 200 (Beige)","SKY 300 (Grey)"] },
-    { category:"Roller", name:"Field", price:13.8,
-      codes:["FLB 300 (Grey)","FLB 600 (White)"] },
-    { category:"Roller", name:"TC", price:12.5,
-      codes:["TC 100 (Ivory)","TC 600 (White)"] },
-    { category:"Roller", name:"Miami (B/O)", price:16.8,
-      codes:["MIA 300 (Grey)","MIA 410 (Chocolate)","MIA 510 (Charcoal)","MIA 600 (White)","MIA 630 (Vanilla)"] },
-    { category:"Roller", name:"JA (B/O)", price:16.2,
-      codes:["JA 001 (White)","JA 003 (Fawn)"] },
-    { category:"Roller", name:"NF (B/O)", price:16.8,
-      codes:["NF 310 (Light Grey)","NF 600 (White)"] },
-    { category:"Roller", name:"ICE", price:11.5,
-      codes:["ICE 300 (Grey)","ICE 600 (White)"] },
-    { category:"Roller", name:"Sunscreen 1%", price:14.7,
-      codes:["1SUN 200 (WYN 3102 / Beige)","1SUN 300 (WYN 3103 / Grey)","1SUN DN300","1SUN 500 (N914 1% / Black)","1SUN DN500","1SUN 600 (WYN 3101 / White)"] },
-    { category:"Roller", name:"Sunscreen 3%", price:14.7,
-      codes:["3SUN 200 (WYN 3302 / Beige)","3SUN 300 (WYN 3303 / Grey)","3SUN 400 (Brown)","3SUN 500 (N901 / Black)","3SUN 600 (WYN 3301 / White)"] },
-    { category:"Roller", name:"Sunscreen 5%", price:14.7,
-      codes:["5SUN 300 (Grey)","5SUN 500 (N901 / Black)","5SUN 600 (White)"] },
-  ]
-};
-
-/* ================= Fabric Catalog policies (FINAL) ================ */
-// 실제 삭제할 개별 코드: 최종 Seed에 이미 반영되어 있으므로 비움
-const FABRIC_DELETE_CODES = new Set([]);
-
-// 통째로 제거할 패밀리: (혹시 Seed에 남겨둘 경우를 대비해 유지)
-const FABRIC_REMOVE_FAMILIES = new Set(["Field (B/O)","Sky (B/O)"]);
-
-// Seed가 최종본이므로 추가 패치 불필요
-const FABRIC_ADD_FAMILIES = [];
-const FABRIC_PATCH_APPEND_CODES = [];
-
-/** 세일즈에서만 숨길 코드(정확 키) — 최종 확정본 */
-const FABRIC_SALES_HIDDEN_CODES = new Set([
-  "PLU 200","PLU 300",
-  "SIG 330","SIG 520",
-  "ESP 100",
-  "NAT 810",
-  "FLB 300","FLB 600",
-  "TC 100","TC 600",
-  "1SUN DN300","1SUN DN500",
-  "3SUN 400",
-  "5SUN 300","5SUN 600"
-]);
-
-/** 문자열에서 "코드 키" 추출 (예: "PLU 200 (Beige)" → "PLU 200") */
-function extractCodeKey(s){
-  const str = String(s||"");
-  // 1SUN DN300/500 같은 패턴은 그대로 반환
-  if (/^\s*1SUN\s+DN\d+\s*$/i.test(str)) return str.trim().toUpperCase();
-  const m = str.match(/^([A-Za-z0-9]+)\s*\d+/);
-  if(!m) return (str.split("(")[0]).trim();
-  const head = m[1].toUpperCase();
-  const num = (str.match(/\d+/)||[""])[0];
-  return `${head} ${num}`.trim();
-}
-
-// 1) 씨드 패밀리 name -> price 매핑
-function seedPriceByName() {
-  const m = new Map();
-  for (const fam of (FABRIC_SEED.families||[])) m.set(fam.name, fam.price);
-  return m;
-}
-
-function placeFamilyAfter(families, familyName, anchorName) {
-  const moving = (families||[]).find(f => f?.name === familyName);
-  if (!moving) return families || [];
-
-  const rest = (families||[]).filter(f => f?.name !== familyName);
-  const anchorIndex = rest.findIndex(f => f?.name === anchorName);
-  if (anchorIndex < 0) return [...rest, moving];
-
-  return [
-    ...rest.slice(0, anchorIndex + 1),
-    moving,
-    ...rest.slice(anchorIndex + 1),
-  ];
-}
-
-// 2) 런타임 카탈로그 패치 + price 보정
-function runFabricPatches(){
-  const cur  = getLS(LS_FABRIC, FABRIC_SEED);
-  const seed = FABRIC_SEED; // 최종본
-  const seedPrice = seedPriceByName();
-
-  const next = { ...cur, families: [] };
-  const existingNames = new Set();
-
-  for (const fam of (cur.families||[])) {
-    if (FABRIC_REMOVE_FAMILIES.has(fam.name)) continue;
-
-    // 코드 필터
-    const codes = Array.isArray(fam.codes)
-      ? fam.codes.filter(c => !FABRIC_DELETE_CODES.has(extractCodeKey(c)))
-      : [];
-
-    // 🔴 price는 씨드 기준으로 보정 (없거나 0이면 씨드값으로)
-    let price = fam.price;
-    const seedP = seedPrice.get(fam.name);
-    if (price == null || price === 0) price = seedP != null ? seedP : 0;
-
-    next.families.push({ ...fam, price, codes });
-    existingNames.add(fam.name);
-  }
-
-  for (const fam of (seed.families||[])) {
-    if (FABRIC_REMOVE_FAMILIES.has(fam.name)) continue;
-    if (existingNames.has(fam.name)) continue;
-    next.families.push(fam);
-  }
-
-  next.families = placeFamilyAfter(next.families, "DN-D", "DN (Single)");
-
-  setLS(LS_FABRIC, next);
-}
-
-/** sales 계정에서 컬러 코드 필터링 */
-function filterCodesForRole(codes){
-  const role = (getLS(LS_AUTH,null)?.role) || "worker";
-  if(role !== "sales") return codes || [];
-  return (codes||[]).filter(c => !FABRIC_SALES_HIDDEN_CODES.has(extractCodeKey(c)));
-}
-
-/* ================= Display helpers (label-only) ================ */
-// 컬러 정렬용 키: [isDN, number, stableKey]
-function colorSortKey(code){
-  const s = String(code || "");
-  const dn = s.match(/\bDN(\d{1,4})\b/i);
-  const numMatch = s.match(/\b(\d{1,4})\b/);
-  const num = dn ? parseInt(dn[1],10) : (numMatch ? parseInt(numMatch[1],10) : 99999);
-  const isDN = !!dn;
-  const stable = extractCodeKey(s); // PLU 100, 1SUN DN300 등
-  return [isDN ? 1 : 0, num, stable];
-}
-function compareColorCodes(a, b){
-  const ka = colorSortKey(a), kb = colorSortKey(b);
-  return (ka[0]-kb[0]) || (ka[1]-kb[1]) || ka[2].localeCompare(kb[2]);
-}
-
-/** 긴 패밀리명 → 사내 약칭 */
-const FAMILY_SHORT_MAP = new Map([
-  // Dual
-  ["Pluto", "PLU"], ["Roselle", "RS"], ["Sun Flare", "SF"], ["Signature", "SIG"],
-  ["Libra", "LIB"], ["Top", "TOP"], ["Le Pearl (Montblanc Pearl)", "PER"],
-  ["Esparro (Evian)", "ESP"], ["Comet (Cosmo)", "COM"], ["Lucca 2 Tone", "OLE"],
-  ["Somnia", "SN"], ["Mille (Plain/Eva)", "MIE"], ["Luna (Diamond)", "LUN"],
-  ["Nature (Natural)", "NAT"], ["1 Linear (Pucker 1)", "1LIN"],
-  ["7 Linear (Pucker 7)", "7LIN"], ["Zio (Basic)", "ZIO"],
-  ["Aries (Polaris)", "ARI"],
-  // Roller
-  ["TS (Tashkent Single)", "TS"], ["DN (Single)", "DN"], ["DN-D", "DN-D"],
-  ["Sky", "SKY"], ["Field", "FLB"], ["TC", "TC"],
-  ["Miami", "MIA"], ["JA (B/O)", "JA"], ["NF (B/O)", "NF"],
-  ["ICE", "ICE"], ["Sunscreen 1%", "1SUN"], ["Sunscreen 3%", "3SUN"],
-  ["Sunscreen 5%", "5SUN"],
-]);
-
-/** "Pluto (B/O)" -> "PLU (B/O)" */
-function formatFamilyLabel(familyName) {
-  const m = String(familyName||"").match(/^(.*?)(\s*\(B\/O\))?$/);
-  const base = (m?.[1]||"").trim();
-  const bo   = (m?.[2]||"").trim();
-  const short = FAMILY_SHORT_MAP.get(base) || base.toUpperCase();
-  return bo ? `${short} ${bo}` : short;
-}
-
-/** 컬러 표시: "PLU 100 (Ivory)" -> "100 (Ivory)" 등 */
-function formatColorLabel(raw) {
-  const s = String(raw||"");
-  const key = extractCodeKey(s);
-
-  // 1SUN DN 특수 처리
-  if (key === "1SUN DN300") return "DN300 (Grey)";
-  if (key === "1SUN DN500") return "DN500 (Black)";
-
-  // 번호
-  const num = (s.match(/\b(\d{1,4})\b/) || [,""])[1];
-
-  // 괄호 안 추출
-  let name = (s.match(/\(([^)]+)\)/) || [,""])[1] || "";
-
-  // 제조사 꼬리표(/ Plain|Eva|Natural|Eco) 제거
-  name = name.replace(/\s*\/\s*(Plain|Eva|Natural|Eco)\b/i, "").trim();
-
-  // "WYN 3101 / White" 처럼 슬래시가 있으면 마지막 토큰만 남김
-  if (name.includes("/")) {
-    const parts = name.split("/");
-    name = parts[parts.length-1].trim();
-  }
-
-  // "RS001 – Pure White" / "SN005 - Grey" 같은 프리픽스 제거
-  name = name.replace(/^[A-Z]{2,}\d+\s*[–-]\s*/,"").trim();
-
-  if (!name) return num || s;
-
-  // 소문자 brown 보정
-  if (/^\s*brown\s*$/i.test(name)) name = "Brown";
-
-  return `${num} (${name})`;
-}
-
-// family 원문 이름 → 사내 약칭(PLU/OLE/1SUN...)
-function shortCodeForFamilyName(name){
-  const raw = String(name||"").trim();
-  const isBO = /\s*\(B\/O\)\s*$/i.test(raw);
-  const base = raw.replace(/\s*\(B\/O\)\s*$/i,"").trim();
-  const short = (FAMILY_SHORT_MAP.get(base) || base.toUpperCase()).split(" ")[0];
-  return isBO ? `${short} B/O` : short;
-}
-
-// color 문자열에서 컬러코드만 뽑기 (숫자 또는 DN특수코드)
-function extractColorToken(color){
-  const s = String(color||"");
-  if (s.toUpperCase() === "TBD") return "TBD";   // ▼ 추가
-  const dn = s.match(/\bDN(300|500)\b/i);
-  if (dn) return dn[0].toUpperCase();    // DN300 / DN500
-  const n = s.match(/\b\d{1,4}\b/);
-  return n ? n[0] : "";                  // 100, 600 등
-}
-
-// 리뷰/엑셀 공통: 아이템 → "약칭 코드" 조합 생성 (DUO + MANUAL 대응)
-function canonicalFabricNo(it){
-  const isDuo = it?.upType === "4FA(Duo)";
-
-  // --- A쪽 라벨 ---
-  let a = "";
-  if (it?.fabric === "MANUAL") {
-    a = prettyCode(it.fabricName || it.color || "");
-  } else {
-    const famA = shortCodeForFamilyName(it?.fabric);
-    const tokA = extractColorToken(it?.color);
-    a = tokA ? `${famA} ${tokA}` : famA;
-  }
-
-  // --- B쪽 라벨 (DUO일 때만) ---
-  let b = "";
-  if (isDuo) {
-    if (it?.fabricB === "MANUAL") {
-      b = prettyCode(it.fabricNameB || it.colorB || "");
-    } else if (it?.fabricB || it?.colorB) {
-      const famB = shortCodeForFamilyName(it?.fabricB || it?.fabric);
-      const tokB = extractColorToken(it?.colorB);
-      b = tokB ? `${famB} ${tokB}` : famB;
-    }
-  }
-
-  // 병합
-  if (b) return a ? `${a} / ${b}` : b;
-  return a;
-}
-
-/** 세일즈 role 필터 + 표시 라벨 묶음 */
-function buildColorOptionsForDisplay(codes){
-  const visible = (filterCodesForRole(codes||[]) || []).slice().sort(compareColorCodes);
-  const labels = {};
-  for (const c of visible) labels[c] = formatColorLabel(c);
-  // ▼ 마지막에 "TBD" 추가
-  const options = [...visible, "TBD"];
-  labels["TBD"] = "TBD (decide later)"; // 보이는 라벨
-  return { options, labels };
-}
-
-/** 패밀리 옵션 (value=원문, label=약칭) */
-function buildFamilyOptionsForDisplay(families){
-  const options = (families||[]).map(f => f.name).concat(["MANUAL"]);
-  const labels = { MANUAL: "Manual input" };
-  for (const f of (families||[])) labels[f.name] = formatFamilyLabel(f.name);
-  return { options, labels };
-}
-
-/* ── Numeric typography (iPad 숫자폭 깨짐 대응) ───────────────── */
 const NUM = [
   "text-right",
   "font-medium",
@@ -1604,6 +786,120 @@ class ErrorBoundary extends React.Component {
 }
 
 
+/* ===== Export helpers (Office > Export??? ??) ===== */
+const XL_STYLE = {
+  fontFamily: "font-family: Calibri, 'Malgun Gothic', Arial, sans-serif;",
+  headBg: "background:#eef2f7;",
+  infoBg: "background:#f5f6f8;",
+  totalBg: "background:#f9fafb;",
+  border: "border:1px solid #c9d2e0;",
+  th: "font-weight:700;text-align:center;",
+  td: "font-weight:400;text-align:left;",
+  tdCenter: "text-align:center;",
+  tdRight: "text-align:right;",
+  h1: "font-weight:700;font-size:14px;padding:6px 8px;",
+  h2: "font-weight:600;font-size:12px;padding:4px 6px;",
+  cell: "padding:4px 6px;",
+  money: "mso-number-format:'\\0022$\\0022#,##0.00';",
+  int: "mso-number-format:'0';",
+  dec1: "mso-number-format:'0.0';",
+  dec2: "mso-number-format:'0.00';",
+};
+
+function appendSqftTotalRow(headers, body, excludedFlags = []) {
+  const idx = headers.indexOf("Sqft");
+  if (idx < 0) return;
+
+  let sum = 0;
+  for (let i = 0; i < body.length; i++) {
+    const isExcluded = excludedFlags[i] === true;
+    const v = Number(body[i][idx]);
+    if (!isExcluded && Number.isFinite(v)) sum += v;
+  }
+
+  const total = Array(headers.length).fill("");
+  total[idx] = sum;
+  body.push(total);
+}
+
+function sectionTitleHTML(title, colSpan){
+  return `<tr><td colspan="${colSpan}" style="${XL_STYLE.h1}${XL_STYLE.border}${XL_STYLE.headBg}">${esc(title)}</td></tr>`;
+}
+
+function esc(s){
+  return String(s==null?"":s)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;");
+}
+
+function makeOptionsLabelRow(headers){
+  const optStartIdx = headers.indexOf("Spring Assist");
+  if (optStartIdx < 0) return "";
+
+  const optSpan = headers.length - optStartIdx;
+  const blanks = Array(optStartIdx)
+    .fill(`<td style="${XL_STYLE.cell}${XL_STYLE.border}"></td>`)
+    .join("");
+
+  const mergedStyle =
+    `font-family:'Malgun Gothic','?? ??',Calibri,Arial,sans-serif;` +
+    `font-size:9pt;font-weight:700;` +
+    XL_STYLE.cell + XL_STYLE.headBg + XL_STYLE.border;
+
+  const merged = `<td colspan="${optSpan}" style="${mergedStyle}">Options / Extras</td>`;
+  return `<tr>${blanks}${merged}</tr>`;
+}
+
+function splitFtIn32(totalIn){
+  const r = splitInches(totalIn);
+  return { ft:r.ft, inch:r.inch, frac32:r.frac32 };
+}
+
+function buildSplitSummary(it, headerUnit){
+  const N = Number(it?.splitN || 0);
+  if (!N || N < 2) return null;
+
+  const LABELS = {
+    2: ["1L","2R"],
+    3: ["1L","2M","3R"],
+    4: ["1LL","1L","2R","2RR"],
+    5: ["1LL","2L","3M","4R","5RR"],
+    6: ["1LLL","2LL","3L","4R","5RR","6RRR"],
+    7: ["1LLL","2LL","3L","4M","5R","6RR","7RRR"],
+  };
+
+  const unitDefault =
+    headerUnit === "mm" ? "mm"
+    : headerUnit === "in" ? "in"
+    : "ft-in";
+
+  const unit = it.splitUnit || unitDefault;
+  const labels = (LABELS[N] || []).slice(0, N);
+  const srcLens = (it.splitLens || []).slice(0, N);
+
+  const lensTexts = srcLens.map((raw) => {
+    if (raw === "" || raw == null) return "";
+    if (unit === "ft-in") {
+      const n = in2(raw);
+      return Number.isFinite(n) ? String(n) : "";
+    } else {
+      const n = Number(raw);
+      if (!Number.isFinite(n)) return "";
+      return String(round1(n));
+    }
+  });
+
+  return {
+    count: N,
+    unit,
+    labels,
+    lensTexts,
+    ctrls: Array.from({length: N}, (_,i)=> String(it.splitCtrl?.[i] ?? "-").toUpperCase()),
+    labelsJoined: labels.join("|"),
+    lensJoined:  lensTexts.join("|"),
+  };
+}
 /* ---------------- Root ---------------- */
 export default function App(){
   const [UIToasts,toast]=useToast();
