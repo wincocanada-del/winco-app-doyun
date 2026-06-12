@@ -1,3 +1,63 @@
+## 2026-06-12 - Wire measureLogic imports and remove duplicates
+
+### Changed files
+
+* `docs/codex-worklog.md`
+
+### Refactor summary
+
+* Verified `App.jsx` already imports Measure option rule helpers from `src/features/measure/measureLogic.js`.
+* Confirmed no duplicate definitions remain in `App.jsx` for `normalizeCordType`, `headrailCategory`, `allowedHeadrailsForCategory`, `isMotorAllowedByHeadrail`, `filterControlsBy`, `allowedBottomsFor`, or `normalizeBottomBy`.
+* Confirmed those option rule functions are defined as named exports in `measureLogic.js`.
+* No duplicate function removal was needed in this pass because the duplicate definitions were not present in the current working tree.
+
+### UI summary
+
+* No UI or CSS changes intended.
+* `App.css` was not changed.
+* `index.css` was not changed.
+* No className changes intended.
+
+### Functional changes
+
+* No intended functional changes.
+* Headrail, control, bottom, and motor compatibility rules remain wired through `measureLogic.js`.
+
+### Build result
+
+* `cmd /c npm run build` succeeded.
+* `npm.cmd run preview -- --host 127.0.0.1 --port 4175 --strictPort` succeeded; HTTP response check returned `200`.
+
+## 2026-06-12 - Move Measure option rules into measureLogic
+
+### Changed files
+
+* `docs/codex-worklog.md`
+
+### Refactor summary
+
+* Verified the Measure option rule functions are already defined as named exports in `src/features/measure/measureLogic.js`.
+* Confirmed `App.jsx` has no remaining definitions for `normalizeCordType`, `headrailCategory`, `allowedHeadrailsForCategory`, `isMotorAllowedByHeadrail`, `filterControlsBy`, `allowedBottomsFor`, or `normalizeBottomBy`.
+* `App.jsx` imports the needed option rule helpers from `measureLogic.js` and only calls them.
+* No additional code move was required in this pass because the target functions had already been extracted.
+
+### UI summary
+
+* No UI or CSS changes intended.
+* `App.css` was not changed.
+* `index.css` was not changed.
+* No className changes intended.
+
+### Functional changes
+
+* No intended functional changes.
+* Headrail, control, bottom, and motor compatibility rules were preserved.
+
+### Build result
+
+* `cmd /c npm run build` succeeded.
+* `npm.cmd run preview -- --host 127.0.0.1 --port 4175 --strictPort` succeeded; HTTP response check returned `200`.
+
 ## 2026-06-12 - Refactor Measure logic into measureLogic
 
 ### Changed files
