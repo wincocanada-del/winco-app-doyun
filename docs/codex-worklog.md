@@ -1,3 +1,35 @@
+## 2026-06-12 - Refactor Measure logic into measureLogic
+
+### Changed files
+
+* `src/App.jsx`
+* `src/features/measure/measureLogic.js`
+* `docs/codex-worklog.md`
+
+### Refactor summary
+
+* Verified that Measure pure rules/calculation definitions are in `src/features/measure/measureLogic.js`, with `App.jsx` importing and calling them.
+* Confirmed these functions are exported from `measureLogic.js`: `normalizeCordType`, `resolveItem`, `headrailCategory`, `allowedHeadrailsForCategory`, `isMotorAllowedByHeadrail`, `filterControlsBy`, `allowedBottomsFor`, `normalizeBottomBy`, `lrValue`, `lenValue`, `calcAccessoriesLines`, `computeLine`, and `computeTotals`.
+* `App.jsx` keeps Measure JSX, React state, event handlers, storage flow, Supabase flow, and export HTML helpers.
+* App-local functions left in `App.jsx` are tied to UI behavior, storage, validation, export rendering, or component-local workflows rather than pure Measure pricing rules.
+
+### UI summary
+
+* No UI or CSS changes intended.
+* `App.css` was not changed.
+* `index.css` was not changed.
+* No className changes intended.
+
+### Functional changes
+
+* No intended functional changes.
+* Measure calculations, option compatibility, surcharge, motor/accessory calculations, review/export helper compatibility, and existing workflow calls were preserved.
+
+### Build result
+
+* `cmd /c npm run build` succeeded.
+* `npm.cmd run preview -- --host 127.0.0.1 --port 4175 --strictPort` succeeded; HTTP response check returned `200`.
+
 ## 2026-06-12 - Refactor Measure rules and calculations
 
 ### Changed files
