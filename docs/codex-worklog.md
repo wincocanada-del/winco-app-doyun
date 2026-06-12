@@ -1,3 +1,89 @@
+## 2026-06-12 - Add Codex guidelines
+
+### Changed files
+
+* `docs/codex-guidelines.md`
+* `docs/codex-worklog.md`
+
+### Refactor summary
+
+* Added `docs/codex-guidelines.md` as the shared task rules document for future Codex work on the legacy Winco app.
+* Captured project context, absolute refactor constraints, required preserved fixes, verification expectations, and worklog requirements.
+
+### UI summary
+
+* No UI or CSS changes intended.
+* `App.css` was not changed.
+* `index.css` was not changed.
+
+### Functional changes
+
+* No intended functional changes.
+* Documentation-only change.
+
+### Build result
+
+* `npm run build` was not run because this was a documentation-only change.
+
+## 2026-06-12 - Move normalizeCordType into measureLogic
+
+### Changed files
+
+* `docs/codex-worklog.md`
+
+### Refactor summary
+
+* Read `docs/codex-guidelines.md` before starting and followed its constraints.
+* Verified `normalizeCordType` is already defined as a named export in `src/features/measure/measureLogic.js`.
+* Verified `App.jsx` imports `normalizeCordType` from `measureLogic.js` and keeps its existing call sites.
+* Confirmed `App.jsx` has no remaining `function normalizeCordType` or `const normalizeCordType` definition.
+* No additional code move was required because `normalizeCordType` was already extracted.
+
+### UI summary
+
+* No UI or CSS changes intended.
+* `App.css` was not changed.
+* `index.css` was not changed.
+
+### Functional changes
+
+* No intended functional changes.
+* Control type normalization behavior is preserved.
+
+### Build result
+
+* `cmd /c npm run build` succeeded.
+* `npm.cmd run preview -- --host 127.0.0.1 --port 4175 --strictPort` succeeded; HTTP response check returned `200`.
+
+## 2026-06-12 - Move normalizeCordType into measureLogic
+
+### Changed files
+
+* `docs/codex-worklog.md`
+
+### Refactor summary
+
+* Verified `normalizeCordType` is defined as a named export in `src/features/measure/measureLogic.js`.
+* Verified `App.jsx` imports `normalizeCordType` from `measureLogic.js` and uses that import.
+* Confirmed `App.jsx` has no remaining `function normalizeCordType` or `const normalizeCordType` definition.
+* No additional code move was required in this pass because `normalizeCordType` had already been extracted.
+
+### UI summary
+
+* No UI or CSS changes intended.
+* `App.css` was not changed.
+* `index.css` was not changed.
+
+### Functional changes
+
+* No intended functional changes.
+* Control type normalization behavior is preserved.
+
+### Build result
+
+* `cmd /c npm run build` succeeded.
+* `npm.cmd run preview -- --host 127.0.0.1 --port 4175 --strictPort` succeeded; HTTP response check returned `200`.
+
 ## 2026-06-12 - Wire measureLogic imports and remove duplicates
 
 ### Changed files
