@@ -1,3 +1,35 @@
+## 2026-06-11 - Refactor Measure UI components
+
+### Changed files
+
+* `src/App.jsx`
+* `src/features/measure/components/MeasureUi.jsx`
+* `docs/codex-worklog.md`
+
+### Refactor summary
+
+* Moved small Measure UI components from `App.jsx` into `src/features/measure/components/MeasureUi.jsx`.
+* Extracted `NumberL`, `InputL`, `SelectL`, `FeetInches`, `TitleCustomer`, and `TotalsCard`.
+* Moved display-only layout/value class constants `COL`, `NUM`, and `NUM_GRAND` with those components.
+* Kept `Measure` itself, pricing calculations, compatibility logic, `computeLine`, `computeTotals`, and accessory calculation logic in `App.jsx`.
+
+### UI summary
+
+* No UI or CSS changes intended.
+* `App.css` was not changed.
+* `index.css` was not changed.
+* No className changes intended; extracted components keep the existing JSX/className structure.
+
+### Functional changes
+
+* No intended functional changes.
+* Measure inputs, ft/in input, totals display, calculations, Draft save flow, and existing screen rendering were preserved.
+
+### Build result
+
+* `cmd /c npm run build` succeeded.
+* `npm.cmd run preview -- --host 127.0.0.1 --port 4175 --strictPort` succeeded; HTTP response check returned `200`.
+
 ## 2026-06-11 - Refactor Splash and Login into Auth feature
 
 ### Changed files
