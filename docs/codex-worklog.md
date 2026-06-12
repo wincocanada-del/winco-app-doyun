@@ -1,3 +1,35 @@
+## 2026-06-12 - Refactor Measure rules and calculations
+
+### Changed files
+
+* `src/App.jsx`
+* `src/features/measure/measureLogic.js`
+* `docs/codex-worklog.md`
+
+### Refactor summary
+
+* Moved pure Measure rules and calculation helpers from `App.jsx` into `src/features/measure/measureLogic.js`.
+* Extracted control/headrail/bottom compatibility helpers: `normalizeCordType`, `resolveItem`, `headrailCategory`, `allowedHeadrailsForCategory`, `isMotorAllowedByHeadrail`, `filterControlsBy`, `allowedBottomsFor`, `normalizeBottomBy`, `lrValue`, and `lenValue`.
+* Extracted surcharge and pricing helpers: `headrailSurcharge`, `sideChannelPrice`, `lChannelPrice`, `calcAccessoriesLines`, `computeLine`, and `computeTotals`.
+* Kept `Measure` JSX, state, storage flow, export helpers, and screen structure in `App.jsx`.
+
+### UI summary
+
+* No UI or CSS changes intended.
+* `App.css` was not changed.
+* `index.css` was not changed.
+* No className changes intended.
+
+### Functional changes
+
+* No intended functional changes.
+* Measure calculations, option compatibility, surcharge, motor pricing, accessory calculations, review/export helper compatibility, and existing workflow calls were preserved.
+
+### Build result
+
+* `cmd /c npm run build` succeeded.
+* `npm.cmd run preview -- --host 127.0.0.1 --port 4175 --strictPort` succeeded; HTTP response check returned `200`.
+
 ## 2026-06-11 - Refactor Measure UI components
 
 ### Changed files
